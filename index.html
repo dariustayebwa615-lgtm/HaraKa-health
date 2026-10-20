@@ -1,1 +1,127 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HaraKa Medical Services</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+body{background:#f8fafc;padding-bottom:90px}
+.header{background:linear-gradient(135deg,#0e8a6e,#10b981);color:white;padding:12px 16px;position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center}
+.card{background:white;border-radius:18px;padding:16px;margin:10px 12px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+.btn{padding:12px;border-radius:12px;border:none;font-weight:700;cursor:pointer;width:100%}
+.btn-green{background:#0e8a6e;color:white}
+.btn-red{background:#ef4444;color:white}
+.btn-outline{background:white;border:2px solid #e2e8f0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.small{font-size:12px;color:#64748b}
+.tag{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.tag-green{background:#dcfce7;color:#166534}
+.tag-red{background:#fee2e2;color:#991b1b}
+#map-main,#map-blood,#map-health{height:300px;border-radius:16px;background:#e2e8f0}
+.input{width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px;margin-top:8px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;padding:8px 0;z-index:60}
+.nav-item{text-align:center;font-size:11px;cursor:pointer;opacity:.5}
+.nav-item.active{opacity:1;background:#ecfdf5;color:#0e8a6e;font-weight:800}
+.sos-fab{position:fixed;bottom:88px;right:14px;background:#ef4444;color:white;border:none;border-radius:50px;padding:14px 20px;font-weight:800;z-index:55}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-box{background:white;border-radius:20px;padding:20px;width:100%;max-width:420px}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#0f172a;color:white;padding:12px 18px;border-radius:12px;z-index:200;display:none}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="header">
+<div><div style="font-weight:800">HaraKa Medical</div><div class="small" style="color:rgba(255,255,255,.8)">Emergency • Blood • Delivery</div></div>
+<div style="display:flex;gap:8px">
+<select id="lang" onchange="showToast('Language: '+this.value)" style="background:rgba(255,255,255,.2);border:none;color:white;padding:6px;border-radius:8px"><option>EN</option><option>SW</option><option>LG</option><option>FR</option><option>AR</option></select>
+<button onclick="document.getElementById('modal-notif').style.display='flex'" style="background:rgba(255,255,255,.2);border:none;width:36px;height:36px;border-radius:10px;color:white">🔔</button>
+<a href="tel:+256777230350"><button style="background:rgba(255,255,255,.2);border:none;width:36px;height:36px;border-radius:10px;color:white">📞</button></a>
+</div>
+</div>
+<button class="sos-fab" onclick="sos()">🆘 SOS</button>
+<div id="page-home">
+<div class="card" style="background:#0f172a;color:white"><h2>Fast Medical Help</h2><p class="small" style="color:#94a3b8">Ambulance, Car, Boda, Blood, Drugs</p><div class="grid2" style="margin-top:12px"><button class="btn btn-red" onclick="openEmergency()">🚨 EMERGENCY REQUEST</button><button class="btn btn-green" onclick="nav('blood')">🩸 REQUEST BLOOD</button></div></div>
+<div class="card"><b>Emergency Transport — Choose</b><div class="grid3" style="margin-top:10px"><button class="btn btn-outline" onclick="requestTransport('Ambulance')">🚑<br>Ambulance</button><button class="btn btn-outline" onclick="requestTransport('Car')">🚗<br>Car</button><button class="btn btn-outline" onclick="requestTransport('Boda')">🏍️<br>Boda</button></div><div id="map-main" style="margin-top:12px"></div><div class="small">Map uses YOUR GPS location. Green = available near you</div></div>
+<div class="card"><b>Quick Actions</b><div class="grid2" style="margin-top:10px"><button class="btn btn-outline" onclick="nav('pharmacy')">💊 Pharmacy Delivery</button><button class="btn btn-outline" onclick="nav('health')">🏥 Nearby Health Services</button><button class="btn btn-outline" onclick="nav('workers')">👨‍⚕️ Book Health Worker</button><button class="btn btn-outline" onclick="nav('driver')">🚗 Drive with HaraKa</button><button class="btn btn-outline" onclick="nav('collab')">🤝 Collaborations</button><button class="btn btn-outline" onclick="nav('commission')">💰 My Commission 15%</button></div></div>
+</div>
+<div id="page-blood" class="hidden">
+<div class="card"><h2>Blood Services</h2><div class="grid2" style="margin-top:10px"><button class="btn btn-red" onclick="showBloodTab('request')">Request Blood</button><button class="btn btn-green" onclick="showBloodTab('donate')">Donate Blood</button></div></div>
+<div id="blood-request"><div class="card"><label class="small">Select Blood Group</label><div class="grid3" style="margin-top:8px"><button class="btn btn-outline" onclick="filterBlood('A+')">A+</button><button class="btn btn-outline" onclick="filterBlood('B+')">B+</button><button class="btn btn-outline" onclick="filterBlood('O+')">O+</button><button class="btn btn-outline" onclick="filterBlood('AB+')">AB+</button><button class="btn btn-outline" onclick="filterBlood('A-')">A-</button><button class="btn btn-outline" onclick="filterBlood('O-')">O-</button></div><input class="input" id="bloodFilterText" placeholder="Filter by group" oninput="filterBlood(this.value)"><div id="bloodBanks" style="margin-top:12px"></div><div id="map-blood" style="margin-top:10px"></div></div><div class="card"><b>Voluntary Donors</b><div id="donorList"></div><div class="small">You add real donors — no guessed names</div></div></div>
+<div id="blood-donate" class="hidden"><div class="card"><h3>Register as Voluntary Donor</h3><input class="input" id="donorName" placeholder="Your Name"><input class="input" id="donorGroup" placeholder="Blood Group e.g. O+"><input class="input" id="donorPhone" placeholder="Phone"><input class="input" id="donorLocation" placeholder="Your Area"><button class="btn btn-green" style="margin-top:10px" onclick="registerDonor()">Register as Donor</button></div></div>
+</div>
+<div id="page-pharmacy" class="hidden"><div class="card"><h2>Pharmacy Delivery</h2><input class="input" id="pharmSearch" placeholder="Search drugs" oninput="renderPharm(this.value)"><div id="pharmList" style="margin-top:10px"></div></div><div class="card"><h3>Your Cart</h3><div id="cartList" class="small">Empty — you add items</div><div style="margin-top:10px;font-weight:800" id="cartTotal"></div><button class="btn btn-green" onclick="checkoutPharm()">Checkout — MTN MoMo / Airtel Money</button><div class="small">15% commission to app owner</div></div></div>
+<div id="page-health" class="hidden"><div class="card"><h2>Nearby Health Services</h2><div id="map-health"></div><div id="healthList" style="margin-top:10px"></div><div class="small">Edit these names to your real partners</div></div></div>
+<div id="page-driver" class="hidden"><div class="card"><h2>Drive with HaraKa — Registration</h2><input class="input" id="dName" placeholder="Full Name"><input class="input" id="dPhone" placeholder="Phone"><input class="input" id="dId" placeholder="National ID"><input class="input" id="dLicense" placeholder="License No"><select class="input" id="dVehicleType"><option>Vehicle Type</option><option>Ambulance</option><option>Car</option><option>Boda Boda</option></select><input class="input" id="dPlate" placeholder="Number Plate"><input class="input" id="dInsurance" placeholder="Insurance"><textarea class="input" id="dSafety" placeholder="Safety equipment"></textarea><div class="small"><input type="checkbox" id="dAgree"> I agree to safety checks</div><button class="btn btn-green" style="margin-top:12px" onclick="registerDriver()">Submit for Verification</button></div></div>
+<div id="page-workers" class="hidden"><div class="card"><h2>Health Workers</h2><div class="grid2"><button class="btn btn-outline" onclick="showWorkerTab('book')">Book a Worker</button><button class="btn btn-outline" onclick="showWorkerTab('register')">Register as Worker</button></div></div><div id="worker-book"><div class="card"><div id="workerList"></div></div></div><div id="worker-register" class="hidden"><div class="card"><input class="input" id="wName" placeholder="Name"><input class="input" id="wCadre" placeholder="Cadre e.g. Nurse, Doctor"><input class="input" id="wPhone" placeholder="Phone"><input class="input" id="wFee" placeholder="Fee per visit"><button class="btn btn-green" style="margin-top:10px" onclick="registerWorker()">Register</button></div></div></div>
+<div id="page-collab" class="hidden"><div class="card"><h2>Collaborations</h2><select class="input" id="cType"><option>Select Type</option><option>Government</option><option>Hospital / Clinic</option><option>Pharmacy</option><option>Vehicle Company</option></select><input class="input" id="cOrg" placeholder="Organization Name"><input class="input" id="cContact" placeholder="Contact Person & Phone"><textarea class="input" id="cMessage" placeholder="How you want to collaborate"></textarea><button class="btn btn-green" style="margin-top:10px" onclick="submitCollab()">Submit Request</button></div></div>
+<div id="page-commission" class="hidden"><div class="card" style="background:#0f172a;color:white"><h2>Owner Dashboard — 15% Commission</h2><div style="margin-top:12px;background:rgba(255,255,255,.1);padding:12px;border-radius:12px"><div class="small" style="color:#94a3b8">Today's Sales</div><div style="font-size:24px;font-weight:800" id="commToday">UGX 0</div><div class="small" style="color:#94a3b8;margin-top:8px">Your Commission (15%)</div><div style="font-size:20px;font-weight:800;color:#10b981" id="commEarn">UGX 0</div></div><button class="btn btn-green" style="margin-top:10px" onclick="addTestSale()">+ Add Test Sale</button><div class="small" style="color:#94a3b8;margin-top:8px">MTN MoMo & Airtel payments — commission auto calculated</div></div></div>
+<div class="modal" id="modal-notif"><div class="modal-box"><h3>🔔 Notifications</h3><div class="card">🚑 Emergency vehicle assigned</div><div class="card">🩸 Blood request update</div><div class="card">💊 Pharmacy order update</div><button class="btn btn-outline" onclick="closeModal('modal-notif')">Close</button></div></div>
+<div class="modal" id="modal-emergency"><div class="modal-box"><h3>🚨 Emergency Request</h3><select class="input" id="eType"><option>Ambulance</option><option>Car</option><option>Boda Boda</option></select><input class="input" id="eLocation" placeholder="Your location — auto detected"><textarea class="input" id="eDesc" placeholder="What is the emergency?"></textarea><button class="btn btn-red" style="margin-top:10px" onclick="confirmEmergency()">Confirm & Call</button><button class="btn btn-outline" onclick="closeModal('modal-emergency')">Cancel</button></div></div>
+<div class="bottom-nav">
+<div class="nav-item active" onclick="nav('home')">🏠<br>Home</div>
+<div class="nav-item" onclick="nav('blood')">🩸<br>Blood</div>
+<div class="nav-item" onclick="nav('pharmacy')">💊<br>Pharma</div>
+<div class="nav-item" onclick="nav('health')">🗺️<br>Map</div>
+<div class="nav-item" onclick="nav('driver')">🚗<br>More</div>
+</div>
+<script>
+function showToast(m){const t=document.getElementById('toast');t.innerText=m;t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+function nav(p){document.querySelectorAll('[id^=page-]').forEach(e=>e.classList.add('hidden'));document.getElementById('page-'+p).classList.remove('hidden');if(p==='home')setTimeout(()=>initMap('map-main'),150);if(p==='health')setTimeout(()=>initMap('map-health'),150);if(p==='blood')setTimeout(()=>initMap('map-blood'),150)}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function openEmergency(){document.getElementById('modal-emergency').style.display='flex'}
+function requestTransport(t){document.getElementById('eType').value=t;openEmergency()}
+function confirmEmergency(){closeModal('modal-emergency');showToast('Emergency '+document.getElementById('eType').value+' request sent! Calling...');setTimeout(()=>window.open('tel:+256777230350'),400)}
+function sos(){if(confirm('SOS — Send emergency alert with your location?')){showToast('SOS SENT — Location shared');window.open('tel:+256777230350')}}
+let userLat=0.0, userLng=0.0;
+let mapMain,mapBlood,mapHealth;
+function getUserLocation(callback){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{userLat=pos.coords.latitude; userLng=pos.coords.longitude;callback();},()=>{ userLat=0; userLng=0; callback(); });}else{ callback(); }}
+function initMap(id){
+const el=document.getElementById(id); if(!el) return;
+if(id==='map-main'&&mapMain){mapMain.invalidateSize();return}
+if(id==='map-blood'&&mapBlood){mapBlood.invalidateSize();return}
+if(id==='map-health'&&mapHealth){mapHealth.invalidateSize();return}
+getUserLocation(()=>{
+const center = (userLat!==0)? [userLat,userLng] : [0.3476,32.5825];
+const m=L.map(id).setView(center,13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+if(userLat!==0){ L.marker([userLat,userLng]).addTo(m).bindPopup('You are here').openPopup(); }
+if(id==='map-main'){
+const offset=0.01;
+[[userLat+offset,userLng,'🚑 Ambulance — Available'],[userLat-offset,userLng+offset,'🚗 Car — Available'],[userLat,userLng-offset,'🏍️ Boda — Available']].forEach(v=>{ if(userLat!==0) L.marker([v[0],v[1]]).addTo(m).bindPopup(v[2]); });
+mapMain=m;
+}
+if(id==='map-blood'){bloodBanks.forEach(b=>{ if(userLat!==0) L.marker([userLat+(Math.random()-0.5)*0.02, userLng+(Math.random()-0.5)*0.02]).addTo(m).bindPopup(b.name+' — '+b.groups.join(',')); });mapBlood=m;}
+if(id==='map-health'){healthFacilities.forEach(h=>{if(userLat!==0) L.marker([userLat+(Math.random()-0.5)*0.02, userLng+(Math.random()-0.5)*0.02]).addTo(m).bindPopup(h.name);});mapHealth=m;}
+});
+}
+const bloodBanks=[{name:'Blood Bank A — Edit this name', groups:['A+','B+','O+','AB+','O-'], units:'A+:5, O+:10'},{name:'Blood Bank B — Edit this name', groups:['O+','A+','B+'], units:'O+:4'},{name:'Blood Bank C — Edit this name', groups:['A+','O+','AB+'], units:'AB+:2'}];
+let donors=[];
+function renderBloodBanks(f=''){const d=document.getElementById('bloodBanks');d.innerHTML='';bloodBanks.filter(b=>f===''||b.groups.includes(f.toUpperCase())).forEach(b=>{const el=document.createElement('div');el.className='card';el.style.margin='6px 0';el.innerHTML=`<b>${b.name}</b><br><span class='tag tag-green'>${b.groups.join(' ')}</span><div class='small'>${b.units}</div><div class='grid2' style='margin-top:6px'><a href='tel:+256777230350'><button class='btn btn-green'>📞 Call Bank</button></a><button class='btn btn-outline' onclick="showToast('Request sent to ${b.name}')">🩸 Request</button></div>`;d.appendChild(el)})}
+function renderDonors(){const d=document.getElementById('donorList');if(donors.length===0){d.innerHTML='<div class="small">No donors yet — add your first donor below</div>';return} d.innerHTML='';donors.forEach(x=>{const el=document.createElement('div');el.className='card';el.style.margin='6px 0';el.innerHTML=`<b>${x.name}</b> — <span class='tag tag-red'>${x.group}</span><div class='small'>${x.location} • ${x.phone}</div><a href='tel:${x.phone}'><button class='btn btn-outline' style='margin-top:6px'>📞 Call Donor</button></a>`;d.appendChild(el)})}
+function filterBlood(g){document.getElementById('bloodFilterText').value=g;renderBloodBanks(g)}
+function showBloodTab(t){document.getElementById('blood-request').classList.toggle('hidden',t!=='request');document.getElementById('blood-donate').classList.toggle('hidden',t!=='donate')}
+function registerDonor(){const n=document.getElementById('donorName').value,g=document.getElementById('donorGroup').value;if(!n||!g){showToast('Fill name and group');return}donors.unshift({name:n,group:g.toUpperCase(),phone:document.getElementById('donorPhone').value,location:document.getElementById('donorLocation').value});renderDonors();showBloodTab('request');showToast('Thank you — Donor registered')}
+const pharmacyItems=[{name:'Medicine 1 — Edit name',price:2000},{name:'Medicine 2 — Edit name',price:5000},{name:'Supply 1 — Edit name',price:1000}];
+let cart=[];function renderPharm(f=''){const d=document.getElementById('pharmList');d.innerHTML='';pharmacyItems.filter(i=>i.name.toLowerCase().includes(f.toLowerCase())).forEach(i=>{const el=document.createElement('div');el.style.cssText='display:flex;justify-content:space-between;padding:10px;border:1px solid #f1f5f9;border-radius:12px;margin-bottom:6px';el.innerHTML=`<div><b>${i.name}</b><div class='small'>UGX ${i.price} — Edit price</div></div><button class='btn btn-green' style='width:auto;padding:8px 12px' onclick="addCart('${i.name}',${i.price})">Add</button>`;d.appendChild(el)})}
+function addCart(n,p){cart.push({n,p});renderCart();showToast(n+' added')}function renderCart(){const d=document.getElementById('cartList');const t=document.getElementById('cartTotal');if(cart.length===0){d.innerHTML='Empty';t.innerHTML='';return}let s=0;d.innerHTML=cart.map(c=>{s+=c.p;return `<div>${c.n} — ${c.p}</div>`}).join('');t.innerHTML=`Total UGX ${s} — Commission 15% UGX ${Math.round(s*0.15)}`}
+function checkoutPharm(){if(cart.length===0){showToast('Cart empty');return}let sum=cart.reduce((a,c)=>a+c.p,0);let m=prompt('Pay with: 1 = MTN MoMo, 2 = Airtel Money');if(m){addSale(sum);showToast('Payment UGX '+sum+' — Enter PIN');cart=[];renderCart()}}
+const healthFacilities=[{name:'Hospital / Clinic A — Edit name'},{name:'Health Centre B — Edit name'},{name:'Pharmacy C — Edit name'}];
+function renderHealth(){const d=document.getElementById('healthList');d.innerHTML='';healthFacilities.forEach(h=>{const el=document.createElement('div');el.className='card';el.style.margin='6px 0';el.innerHTML=`<b>${h.name}</b><div class='grid2' style='margin-top:6px'><a href='tel:+256777230350'><button class='btn btn-green'>📞 Call</button></a><button class='btn btn-outline' onclick="showToast('Directions')">🧭 Directions</button></div>`;d.appendChild(el)})}
+function registerDriver(){if(!document.getElementById('dAgree').checked){showToast('Please agree to safety terms');return}showToast('Driver registration submitted — verification pending');nav('home')}
+let workers=[];
+function renderWorkers(){const d=document.getElementById('workerList');if(workers.length===0){d.innerHTML='<div class="small">No workers yet — register your health workers</div>';return} d.innerHTML='';workers.forEach(w=>{const el=document.createElement('div');el.className='card';el.style.margin='6px 0';el.innerHTML=`<b>${w.name}</b> — ${w.cadre}<div class='small'>UGX ${w.fee}</div><div class='grid2' style='margin-top:6px'><a href='tel:${w.phone}'><button class='btn btn-green'>📞 Call / Book</button></a><button class='btn btn-outline' onclick="showToast('Booked')">Book</button></div>`;d.appendChild(el)})}
+function showWorkerTab(t){document.getElementById('worker-book').classList.toggle('hidden',t!=='book');document.getElementById('worker-register').classList.toggle('hidden',t!=='register')}
+function registerWorker(){const n=document.getElementById('wName').value;if(!n){showToast('Enter name');return}workers.unshift({name:n,cadre:document.getElementById('wCadre').value,fee:document.getElementById('wFee').value||20000,phone:document.getElementById('wPhone').value});renderWorkers();showWorkerTab('book');showToast('Worker registered')}
+function submitCollab(){showToast('Collaboration request sent');nav('home')}
+let totalSales=0;function addSale(a){totalSales+=a;document.getElementById('commToday').innerText='UGX '+totalSales;document.getElementById('commEarn').innerText='UGX '+Math.round(totalSales*0.15)}function addTestSale(){addSale(50000);showToast('Test sale UGX 50k — commission UGX 7500')}
+renderBloodBanks();renderDonors();renderPharm();renderHealth();renderWorkers();
+getUserLocation(()=>{ setTimeout(()=>initMap('map-main'),500); });
+</script>
+</body>
+</html>
